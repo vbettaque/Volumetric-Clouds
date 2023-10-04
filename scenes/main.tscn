@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3 uid="uid://cvkoeweybg8d8"]
+
+[ext_resource type="Sky" uid="uid://c2eu826l7rs7o" path="res://resources/sky_volumetric.tres" id="1_pepow"]
+
+[sub_resource type="Environment" id="Environment_lqskm"]
+background_mode = 2
+sky = ExtResource("1_pepow")
+
+[node name="Main" type="Node3D"]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.866023, -0.433016, 0.250001, 0, 0.499998, 0.866027, -0.500003, 0.749999, -0.43301, 0, 0, 0)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_lqskm")
