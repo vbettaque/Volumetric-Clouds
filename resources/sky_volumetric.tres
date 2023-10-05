@@ -1,38 +1,24 @@
-[gd_resource type="Sky" load_steps=6 format=3 uid="uid://c2eu826l7rs7o"]
+[gd_resource type="Sky" load_steps=5 format=3 uid="uid://c2eu826l7rs7o"]
 
 [ext_resource type="Shader" path="res://shaders/sky_volumetric.gdshader" id="1_httd0"]
 [ext_resource type="Texture2D" uid="uid://cg4xm74sjql6c" path="res://resources/noise/blue.png" id="2_5lvme"]
-
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_1mjek"]
-noise_type = 3
-frequency = 0.05
-fractal_octaves = 3
-cellular_jitter = 1.0
-cellular_return_type = 3
-domain_warp_type = 2
-
-[sub_resource type="NoiseTexture3D" id="NoiseTexture3D_4tgc1"]
-width = 128
-height = 128
-depth = 1
-invert = true
-seamless = true
-seamless_blend_skirt = 0.2
-noise = SubResource("FastNoiseLite_1mjek")
+[ext_resource type="NoiseTexture3D" uid="uid://jh4au730efuj" path="res://resources/noise/perlin_worley_128.tres" id="3_lhw5i"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_3hgca"]
 shader = ExtResource("1_httd0")
 shader_parameter/viewport_size = null
 shader_parameter/base_color_a = Color(0.78, 0.86, 1, 1)
 shader_parameter/base_color_b = Color(0.4, 0.6, 0.9, 1)
-shader_parameter/cloud_base_height = 400.0
-shader_parameter/cloud_max_height = 1000.0
-shader_parameter/cloud_march_steps = 10
-shader_parameter/cloud_march_offset_scale = 1.0
+shader_parameter/base_radius = 150000.0
+shader_parameter/cloud_base_height = 1500.0
+shader_parameter/cloud_max_height = 4000.0
+shader_parameter/min_steps = 64
+shader_parameter/max_steps = 128
+shader_parameter/march_offset_scale = 1.0
 shader_parameter/light_march_steps = 4
 shader_parameter/light_march_absorption = 1.0
 shader_parameter/blue_noise = ExtResource("2_5lvme")
-shader_parameter/perlin_worley = SubResource("NoiseTexture3D_4tgc1")
+shader_parameter/perlin_worley = ExtResource("3_lhw5i")
 
 [resource]
 sky_material = SubResource("ShaderMaterial_3hgca")
