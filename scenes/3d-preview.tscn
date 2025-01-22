@@ -1,0 +1,52 @@
+[gd_scene load_steps=5 format=3 uid="uid://dx5auv1od34ti"]
+
+[ext_resource type="Script" path="res://noise/cloud_noise.gd" id="1_lfisx"]
+
+[sub_resource type="Shader" id="Shader_qxjuq"]
+code = "shader_type canvas_item;
+
+uniform sampler3D noise;
+
+void vertex() {
+	
+}
+
+void fragment() {
+	vec3 uvw = vec3(UV, 0.);
+	COLOR.rgb = vec3(texture(noise, uvw).r);
+}
+
+//void light() {
+	// Called for every pixel for every light affecting the CanvasItem.
+	// Uncomment to replace the default light processing function with this one.
+//}
+"
+
+[sub_resource type="Texture3DRD" id="Texture3DRD_7o6lx"]
+script = ExtResource("1_lfisx")
+size = 128
+mipmaps = 1
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_m6ix7"]
+shader = SubResource("Shader_qxjuq")
+shader_parameter/noise = SubResource("Texture3DRD_7o6lx")
+
+[node name="Control" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ColorRect" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_m6ix7")
+custom_minimum_size = Vector2(512, 512)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2

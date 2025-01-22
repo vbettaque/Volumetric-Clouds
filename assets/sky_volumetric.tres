@@ -1,0 +1,69 @@
+[gd_resource type="Sky" load_steps=7 format=3 uid="uid://c2eu826l7rs7o"]
+
+[ext_resource type="Shader" path="res://shaders/sky_volumetric.gdshader" id="1_httd0"]
+[ext_resource type="Texture2D" uid="uid://cg4xm74sjql6c" path="res://assets/noise/blue.png" id="2_kawvj"]
+[ext_resource type="Texture3DRD" uid="uid://df3fpg5wdgh6j" path="res://assets/noise/perlin_worley_128.tres" id="4_b1kgl"]
+[ext_resource type="Texture2D" uid="uid://cnockx20iwfef" path="res://assets/weather.bmp" id="5_56wqn"]
+[ext_resource type="Texture3DRD" uid="uid://bx7udjm1lf7vt" path="res://assets/noise/worley_32.tres" id="5_tudio"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_3hgca"]
+shader = ExtResource("1_httd0")
+shader_parameter/viewport_size = null
+shader_parameter/time = 19606.4
+shader_parameter/base_color_a = Color(0.78, 0.86, 1, 1)
+shader_parameter/base_color_b = Color(0.4, 0.6, 0.9, 1)
+shader_parameter/rayleigh = 2.0
+shader_parameter/rayleigh_color = Color(0.26, 0.41, 0.58, 1)
+shader_parameter/mie = 0.005
+shader_parameter/mie_eccentricity = 0.8
+shader_parameter/mie_color = Color(0.63, 0.77, 0.92, 1)
+shader_parameter/turbidity = 10.0
+shader_parameter/ground_color = Color(1, 1, 1, 1)
+shader_parameter/ground_radius = 6.378e+06
+shader_parameter/cloud_min_height = 1500.0
+shader_parameter/cloud_max_height = 4000.0
+shader_parameter/stratus_gradient = Vector4(0.02, 0.05, 0.09, 0.11)
+shader_parameter/cumulus_gradient = Vector4(0.02, 0.2, 0.48, 0.625)
+shader_parameter/cumulonimbus_gradient = Vector4(0.01, 0.0625, 0.78, 1)
+shader_parameter/density_multiplier = 5.0
+shader_parameter/cloud_coverage = 0.25
+shader_parameter/droplet_radius = 1.0
+shader_parameter/color_extinction = Color(0, 0, 0, 1)
+shader_parameter/absorbtion_factor = 1.0
+shader_parameter/color_absorption = Color(0, 0, 0, 1)
+shader_parameter/powder_strength = 2.0
+shader_parameter/shape_scale = 8.0
+shader_parameter/shape_noise_weights = Vector3(0.625, 0.25, 0.125)
+shader_parameter/shape_offset = null
+shader_parameter/erosion_scale = 1.0
+shader_parameter/detail_scale = 0.7
+shader_parameter/detail_noise_weights = Vector3(0.625, 0.25, 0.125)
+shader_parameter/detail_offset = null
+shader_parameter/detail_direction = null
+shader_parameter/detail_speed = null
+shader_parameter/eccentricity_1 = -0.4
+shader_parameter/eccentricity_2 = 0.7
+shader_parameter/phase_mix_weight = 0.5
+shader_parameter/scattering_octaves = 8
+shader_parameter/scattering_attenuation = 0.5
+shader_parameter/extinction_attenuation = 0.5
+shader_parameter/eccentricity_attenuation = 0.5
+shader_parameter/min_big_steps = 64
+shader_parameter/max_big_steps = 128
+shader_parameter/small_step_ratio = 1.0
+shader_parameter/march_offset_scale = 1.0
+shader_parameter/light_march_steps = 4
+shader_parameter/light_march_absorption = 1.0
+shader_parameter/darkness_threshold = 0.0
+shader_parameter/wind_direction = Vector2(1, 0)
+shader_parameter/wind_speed = 20.0
+shader_parameter/weather_scale = 1.0
+shader_parameter/weather_offset = Vector2(0, 0)
+shader_parameter/weather_map = ExtResource("5_56wqn")
+shader_parameter/exposure = 0.1
+shader_parameter/perlin_worley_128 = ExtResource("4_b1kgl")
+shader_parameter/worley_32 = ExtResource("5_tudio")
+shader_parameter/blue_noise = ExtResource("2_kawvj")
+
+[resource]
+sky_material = SubResource("ShaderMaterial_3hgca")
