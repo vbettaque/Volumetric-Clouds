@@ -1,0 +1,26 @@
+[remap]
+
+importer="3d_texture"
+type="CompressedTexture3D"
+uid="uid://c6kdkmj0nxg8l"
+path="res://.godot/imported/cloud_details.png-92dcc5d226894b3557f3ed367a31902b.ctex3d"
+metadata={
+"vram_texture": false
+}
+
+[deps]
+
+source_file="res://volumetric_sky/assets/cloud_details.png"
+dest_files=["res://.godot/imported/cloud_details.png-92dcc5d226894b3557f3ed367a31902b.ctex3d"]
+
+[params]
+
+compress/mode=3
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/hdr_compression=1
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=6
+slices/horizontal=32
+slices/vertical=1

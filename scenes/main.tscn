@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://cvkoeweybg8d8"]
 
 [ext_resource type="Script" path="res://scenes/main.gd" id="1_bl480"]
-[ext_resource type="Sky" uid="uid://c2eu826l7rs7o" path="res://assets/sky_volumetric.tres" id="1_pepow"]
+[ext_resource type="Sky" uid="uid://c2eu826l7rs7o" path="res://volumetric_sky/volumetric_sky.tres" id="1_pepow"]
 [ext_resource type="Script" path="res://free_look_camera.gd" id="2_ui7qd"]
 
 [sub_resource type="Environment" id="Environment_lqskm"]

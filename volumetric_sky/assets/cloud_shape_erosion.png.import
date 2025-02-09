@@ -1,0 +1,26 @@
+[remap]
+
+importer="3d_texture"
+type="CompressedTexture3D"
+uid="uid://bsiur5ryned6q"
+path="res://.godot/imported/cloud_shape_erosion.png-1dbb9894b7b959db3e0a5de959dcf882.ctex3d"
+metadata={
+"vram_texture": false
+}
+
+[deps]
+
+source_file="res://volumetric_sky/assets/cloud_shape_erosion.png"
+dest_files=["res://.godot/imported/cloud_shape_erosion.png-1dbb9894b7b959db3e0a5de959dcf882.ctex3d"]
+
+[params]
+
+compress/mode=3
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/hdr_compression=1
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=6
+slices/horizontal=128
+slices/vertical=1

@@ -1,8 +1,0 @@
-[gd_resource type="Texture3DRD" script_class="CloudNoise" load_steps=2 format=3 uid="uid://df3fpg5wdgh6j"]
-
-[ext_resource type="Script" path="res://noise/cloud_noise.gd" id="1_253be"]
-
-[resource]
-script = ExtResource("1_253be")
-size = 128
-mipmaps = 6
