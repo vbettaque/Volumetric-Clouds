@@ -1,6 +1,6 @@
 [gd_scene load_steps=5 format=3 uid="uid://dx5auv1od34ti"]
 
-[ext_resource type="Script" path="res://noise/cloud_noise.gd" id="1_lfisx"]
+[ext_resource type="Script" path="res://old/cloud_noise.gd" id="1_lfisx"]
 
 [sub_resource type="Shader" id="Shader_qxjuq"]
 code = "shader_type canvas_item;
