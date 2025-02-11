@@ -14,7 +14,7 @@ tonemap_white = 3.22
 script = ExtResource("1_bl480")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(-0.905785, -0.422781, -0.0284764, 0.281805, -0.651212, 0.704634, -0.31645, 0.630222, 0.708999, 0, 0, 0)
+transform = Transform3D(-0.901982, -0.431568, -0.0133302, 0.131917, -0.304843, 0.943222, -0.411129, 0.849011, 0.331893, 0, 0, 0)
 light_angular_distance = 1.85
 shadow_enabled = true
 

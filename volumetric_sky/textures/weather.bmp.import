@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cnockx20iwfef"
-path="res://.godot/imported/weather.bmp-44a1d2ccec5f0e55bd3ca28a83c8cddf.ctex"
+path="res://.godot/imported/weather.bmp-c78b2bfc9004864a6edccf20d4b545e9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://volumetric_sky/assets/weather.bmp"
-dest_files=["res://.godot/imported/weather.bmp-44a1d2ccec5f0e55bd3ca28a83c8cddf.ctex"]
+source_file="res://volumetric_sky/textures/weather.bmp"
+dest_files=["res://.godot/imported/weather.bmp-c78b2bfc9004864a6edccf20d4b545e9.ctex"]
 
 [params]
 

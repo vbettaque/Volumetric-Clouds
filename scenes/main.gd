@@ -2,7 +2,7 @@
 extends Node3D
 
 @onready var world: WorldEnvironment = $WorldEnvironment
-
+"res://scenes/main.tscn"
 var time: float = 0.
 var ticker: int = 0;
 

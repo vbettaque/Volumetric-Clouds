@@ -1,15 +1,15 @@
 [gd_resource type="Sky" load_steps=7 format=3 uid="uid://c2eu826l7rs7o"]
 
-[ext_resource type="Shader" path="res://volumetric_sky/volumetric_sky.gdshader" id="1_httd0"]
-[ext_resource type="Texture2D" uid="uid://cg4xm74sjql6c" path="res://volumetric_sky/assets/blue_noise.png" id="2_kawvj"]
-[ext_resource type="CompressedTexture3D" uid="uid://bsiur5ryned6q" path="res://volumetric_sky/assets/cloud_shape_erosion.png" id="3_njxsr"]
-[ext_resource type="Texture2D" uid="uid://cnockx20iwfef" path="res://volumetric_sky/assets/weather.bmp" id="5_56wqn"]
-[ext_resource type="CompressedTexture3D" uid="uid://c6kdkmj0nxg8l" path="res://volumetric_sky/assets/cloud_details.png" id="5_i4g1g"]
+[ext_resource type="Shader" path="res://volumetric_sky/volumetric_sky.gdshader" id="1_7uqlp"]
+[ext_resource type="Texture2D" uid="uid://cg4xm74sjql6c" path="res://volumetric_sky/textures/blue_noise.png" id="2_jd0lo"]
+[ext_resource type="CompressedTexture3D" uid="uid://bsiur5ryned6q" path="res://volumetric_sky/textures/cloud_base.png" id="3_v3fkf"]
+[ext_resource type="Texture2D" uid="uid://cnockx20iwfef" path="res://volumetric_sky/textures/weather.bmp" id="4_g8xps"]
+[ext_resource type="CompressedTexture3D" uid="uid://c6kdkmj0nxg8l" path="res://volumetric_sky/textures/cloud_detail.png" id="5_14bwr"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_3hgca"]
-shader = ExtResource("1_httd0")
+shader = ExtResource("1_7uqlp")
 shader_parameter/viewport_size = null
-shader_parameter/time = 534.35
+shader_parameter/time = 188.172
 shader_parameter/base_color_a = Color(0.78, 0.86, 1, 1)
 shader_parameter/base_color_b = Color(0.4, 0.6, 0.9, 1)
 shader_parameter/rayleigh = 2.0
@@ -59,11 +59,11 @@ shader_parameter/wind_direction = Vector2(1, 0)
 shader_parameter/wind_speed = 10.0
 shader_parameter/weather_scale = 6.0
 shader_parameter/weather_offset = Vector2(0, 0)
-shader_parameter/weather_map = ExtResource("5_56wqn")
+shader_parameter/weather_map = ExtResource("4_g8xps")
 shader_parameter/exposure = 0.1
-shader_parameter/perlin_worley_128 = ExtResource("3_njxsr")
-shader_parameter/worley_32 = ExtResource("5_i4g1g")
-shader_parameter/blue_noise = ExtResource("2_kawvj")
+shader_parameter/perlin_worley_128 = ExtResource("3_v3fkf")
+shader_parameter/worley_32 = ExtResource("5_14bwr")
+shader_parameter/blue_noise = ExtResource("2_jd0lo")
 
 [resource]
 sky_material = SubResource("ShaderMaterial_3hgca")

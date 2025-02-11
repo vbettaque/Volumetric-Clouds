@@ -161,7 +161,7 @@ float dst_to_radius(vec3 pos, vec3 ray_dir, float radius) {
     return max(p, p2) / (2.0 * a);
 }
 
-// Return relative ehight within cloud layer
+// Return relative height within cloud layer
 // TODO: Account for curvature?
 float relative_height(vec3 pos) {
 	float height_diff = abs(cloud_max_height - cloud_min_height);
@@ -284,7 +284,7 @@ vec3 absorbtion(float conc) {
 	return sigma_a * color_absorption;
 }
 
-// TODO: Banding at low sung angles
+// TODO: Banding at low sun angles
 vec3 sun_transmittance(vec3 pos) {
 	float step_size = (cloud_max_height - cloud_min_height) / 36.;
 	float total_conc = 0.;

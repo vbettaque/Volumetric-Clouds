@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cg4xm74sjql6c"
-path.s3tc="res://.godot/imported/blue_noise.png-a55c95a06aadfa5f22b5831ed01ff847.s3tc.ctex"
+path.s3tc="res://.godot/imported/blue_noise.png-f2ddf5137a9cbb8e7783abc2083ee506.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://volumetric_sky/assets/blue_noise.png"
-dest_files=["res://.godot/imported/blue_noise.png-a55c95a06aadfa5f22b5831ed01ff847.s3tc.ctex"]
+source_file="res://volumetric_sky/textures/blue_noise.png"
+dest_files=["res://.godot/imported/blue_noise.png-f2ddf5137a9cbb8e7783abc2083ee506.s3tc.ctex"]
 
 [params]
 
