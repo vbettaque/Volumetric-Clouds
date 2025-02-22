@@ -5,10 +5,10 @@ render_mode use_half_res_pass;
 #define SUNSIZE LIGHT0_SIZE
 
 const float EPSILON = 0.01;
-const float SHAPE_BASE_SCALE = 0.00001;
-const float DETAIL_BASE_SCALE = 0.001;
+const float BASE_UVW_BASE_SCALE = 0.00001;
+const float DETAIL_UVW_BASE_SCALE = 0.001;
 const float DENSITY_BASE_SCALE = 0.01;
-const float WEATHER_BASE_SCALE = 0.00001;
+const float WEATHER_UV_BASE_SCALE = 0.00001;
 
 const float SUN_ENERGY = 1000.0;
 
@@ -42,35 +42,33 @@ uniform vec4 ground_color : source_color = vec4(1.0);
 group_uniforms;
 
 group_uniforms Clouds;
-uniform float ground_radius = 6378000.0;
+uniform float ground_radius = 6371000.;
 uniform float cloud_min_height: hint_range(0, 1500, 10) = 1500.0;
 uniform float cloud_max_height: hint_range(1500, 10000, 10) = 4000.0;
+
 
 uniform vec4 stratus_gradient = vec4(0.02, 0.05, 0.09, 0.11);
 uniform vec4 cumulus_gradient = vec4(0.02, 0.2, 0.48, 0.625);
 uniform vec4 cumulonimbus_gradient = vec4(0.01, 0.0625, 0.78, 1.0);
 
-uniform float density_multiplier: hint_range(0.0, 10.0, 0.1) = 5.;
+uniform float extinction_scale: hint_range(0.0, 1.0, 0.01) = 0.1;
 uniform float cloud_coverage: hint_range(0.0, 1.0, 0.01) = 0.25;
 uniform float droplet_radius: hint_range(1.0, 50.0, 0.1) = 4; // micrometer
-uniform vec3 color_extinction: source_color = vec3(0.);
-uniform float absorbtion_factor: hint_range(0.0, 1.0, 0.1) = 1;
-uniform vec3 color_absorption: source_color = vec3(0.);
-uniform float powder_strength: hint_range(0.0, 20.0, 0.1) = 2;
+uniform vec3 albedo: source_color = vec3(1.);
+uniform float powder_coefficient: hint_range(0.0, 20.0, 0.1) = 2;
 
-group_uniforms Clouds.Shape;
-uniform float shape_scale:hint_range(0.0, 50.0, 0.1) = 8;
-uniform vec3 shape_noise_weights = vec3(0.625, 0.25, 0.125);
-uniform vec3 shape_offset;
+group_uniforms Clouds.Base;
+uniform float base_uvw_scale: hint_range(0.0, 50.0, 0.1) = 8;
+uniform vec3 base_fbm_weights = vec3(0.625, 0.25, 0.125);
+uniform float base_wind_scale = 12.;
 group_uniforms;
 
 group_uniforms Clouds.Detail;
 uniform float erosion_scale: hint_range(0.0, 1.0, 0.1) = 1;
-uniform float detail_scale = 1;
-uniform vec3 detail_noise_weights = vec3(0.625, 0.25, 0.125);
-uniform vec3 detail_offset;
+uniform float detail_uvw_scale = 1;
+uniform vec3 detail_fbm_weights = vec3(0.625, 0.25, 0.125);
 uniform vec3 detail_direction;
-uniform float detail_speed;
+uniform float detail_speed = 40.;
 group_uniforms;
 
 group_uniforms Clouds.Phase;
@@ -88,9 +86,9 @@ uniform float eccentricity_attenuation: hint_range(0.0, 1.0, 0.1) = 0.5;
 group_uniforms;
 
 group_uniforms CloudMarch;
-uniform int min_big_steps: hint_range(1, 1000, 1) = 64;
-uniform int max_big_steps: hint_range(1, 1000, 1) = 128;
-uniform float small_step_ratio: hint_range(0.1, 1., 0.01) = 1.;
+uniform int min_steps: hint_range(1, 1000, 1) = 64;
+uniform int max_steps: hint_range(1, 1000, 1) = 128;
+uniform int substeps: hint_range(0, 20) = 0;
 uniform float march_offset_scale: hint_range(0.0, 10.0, 0.1) = 1.;
 group_uniforms;
 
@@ -103,9 +101,9 @@ group_uniforms;
 group_uniforms Weather;
 uniform vec2 wind_direction = vec2(1, 0);
 uniform float wind_speed: hint_range(0.0, 20.0) = 1.0;
-uniform sampler2D weather_map: filter_linear_mipmap, repeat_enable;
-uniform float weather_scale = 6.;
-uniform vec2 weather_offset;
+uniform sampler2D weather_texture: filter_linear_mipmap, repeat_enable;
+uniform float weather_uv_scale = 6.;
+uniform float weather_wind_scale = 16.;
 group_uniforms;
 
 group_uniforms Sun;
@@ -113,15 +111,17 @@ uniform float exposure : hint_range(0, 128) = 0.1;
 group_uniforms;
 
 group_uniforms Noise;
-uniform sampler3D perlin_worley_128: filter_linear_mipmap, repeat_enable;
-uniform sampler3D worley_32: filter_linear_mipmap, repeat_enable;
+uniform sampler3D base_noise_texture: filter_linear_mipmap, repeat_enable;
+uniform sampler3D detail_noise_texture: filter_linear_mipmap, repeat_enable;
 uniform sampler2D blue_noise: repeat_enable;
 group_uniforms;
 
 
+// Position hashing (https://www.shadertoy.com/view/4sfGzS).
+// TODO: Replace with something else?
 float hash(vec3 p) {
-	p  = fract( p * 0.3183099 + 0.1 );
-	p *= 17.0;
+	p = fract(p * 0.3183099 + 0.1);
+	p *= 17.;
 	return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
 }
 
@@ -130,28 +130,33 @@ float sum4(vec4 vec) { return vec.x + vec.y + vec.z + vec.w; }
 float sum3(vec3 vec) { return vec.x + vec.y + vec.z; }
 
 
-// Utility function that maps a value from one range to another.
-float remap(float value,  float old_min,  float old_max,  float new_min,  float new_max) {
-	return new_min + (((value - old_min) / (old_max - old_min)) * (new_max - new_min));
+// Maps value from one range to another.
+float remap(
+    float value, float old_min, float old_max, float new_min, float new_max
+) {
+    float scale_factor = (new_max - new_min) / (old_max - old_min);
+	return new_min + (value - old_min) * scale_factor;
 }
 
 
+// Henyey-Greenstein phase function.
 float henyey_greenstein(float cos_theta, float g) {
-	return FOUR_PI_INV * (1.0 - g * g) /
-		(pow(1.0 + g * g - 2.0 * g * cos_theta, 1.5));
+	return FOUR_PI_INV * (1. - g * g) /
+		(pow(1. + g * g - 2. * g * cos_theta, 1.5));
 }
 
 
-float dual_lobe_hg(float cos_theta, float g_1, float g_2) {
-	float hg_1 = henyey_greenstein(cos_theta, g_1);
-	float hg_2 = henyey_greenstein(cos_theta, g_2);
+// Linearly interpolates between two Henyey-Greenstein phase functions.
+float dual_lobe_hg(float cos_theta, float g_scale) {
+	float hg_1 = henyey_greenstein(cos_theta, g_scale * eccentricity_1);
+	float hg_2 = henyey_greenstein(cos_theta, g_scale * eccentricity_2);
 	return mix(hg_1, hg_2, phase_mix_weight);
 }
 
 
 // Returns distance to the cloud layer given the current view direction.
 // TODO: Check for correctness
-float dst_to_radius(vec3 pos, vec3 ray_dir, float radius) {
+float dist_to_radius(vec3 pos, vec3 ray_dir, float radius) {
 	float a = dot(ray_dir, ray_dir);
     float b = 2.0 * dot(ray_dir, pos);
     float c = dot(pos, pos) - (radius * radius);
@@ -161,29 +166,42 @@ float dst_to_radius(vec3 pos, vec3 ray_dir, float radius) {
     return max(p, p2) / (2.0 * a);
 }
 
-// Return relative height within cloud layer
+// Returns relative height within cloud layer.
 // TODO: Account for curvature?
 float relative_height(vec3 pos) {
-	float height_diff = abs(cloud_max_height - cloud_min_height);
 	float cloud_min_radius = ground_radius + cloud_min_height;
-	float rel_height = (pos.y - cloud_min_radius) / height_diff;
+	float cloud_max_radius = ground_radius + cloud_max_height;
+    float rel_height = remap(pos.y, cloud_min_radius, cloud_max_radius, 0., 1.);
 	return clamp(rel_height, 0., 1.);
 }
 
 
+// Linearly interpolates between the three different cloud gradients depending
+// on the provided cloud type (between 0 and 1).
 float cloud_gradient(float rel_height, float cloud_type) {
-	vec2 gradient_uv = vec2(rel_height, 0);
-	float stratus = 1. - clamp(cloud_type * 2., 0, 1);
+	float stratus = 1. - clamp(cloud_type * 2., 0., 1.);
 	float cumulus = 1. - abs(cloud_type - 0.5) * 2.;
-	float cumulonimbus = clamp(cloud_type - 0.5, 0, 1) * 2.;
-	vec4 gradient = stratus * stratus_gradient + cumulus * cumulus_gradient + cumulonimbus * cumulonimbus_gradient;
-	return smoothstep(gradient.x, gradient.y, rel_height) - smoothstep(gradient.z, gradient.w, rel_height);
+	float cumulonimbus = clamp(cloud_type - 0.5, 0., 1.) * 2.;
+	vec4 gradient = stratus * stratus_gradient
+        + cumulus * cumulus_gradient
+        + cumulonimbus * cumulonimbus_gradient;
+	return smoothstep(gradient.x, gradient.y, rel_height)
+        - smoothstep(gradient.z, gradient.w, rel_height);
 }
 
 
+vec2 wind_offset() {
+    return time * wind_speed * normalize(wind_direction);
+}
+
+
+// Samples from the weather texture.
+// TODO: Change time offset to weather offset since it's not used elsewhere?
 vec4 weather(vec2 pos) {
-	vec2 uv = pos * weather_scale * WEATHER_BASE_SCALE + 0.5 + weather_offset;
-	return texture(weather_map, uv);
+    vec2 weather_offset = weather_wind_scale * wind_offset();
+	vec2 uv = weather_uv_scale * WEATHER_UV_BASE_SCALE
+		* (pos + weather_offset) + 0.5;
+	return texture(weather_texture, uv);
 }
 
 
@@ -239,172 +257,202 @@ vec3 atmosphere(vec3 ray_dir) {
 }
 
 
-// [0, 1] (10e6 * C_V)
-float concentration(vec3 pos, bool has_detail, float lod) {
-
-	pos.xz += time * 20.0 * normalize(wind_direction) * wind_speed * 0.6;
-	float rel_height = relative_height(pos);
-	vec4 weather = weather(pos.xz);
+// Samples the cloud density (between 0 and 1).
+float cloud_density(vec3 pos, bool has_detail, float lod) {
+    float rel_height = relative_height(pos);
+    vec4 weather = weather(pos.xz);
 	float coverage = cloud_coverage * weather.b;
 	float gradient = cloud_gradient(rel_height, weather.r);
+
 	if (gradient < EPSILON || coverage < EPSILON) return 0.;
 
-	vec3 base_uvw = shape_scale * SHAPE_BASE_SCALE * pos;
-	vec4 base_noise = textureLod(perlin_worley_128, base_uvw, lod-2.);
-	vec3 base_weights = shape_noise_weights / sum3(shape_noise_weights);
-	float base_fbm = dot(base_noise.gba, base_weights);
-	float base_density = remap(base_noise.r, -(1. - base_fbm), 1, 0, 1);
-	base_density = remap(base_density * gradient, 1.-coverage, 1, 0, 1);
-	base_density *= coverage;
+    vec3 base_offset = vec3(0.);
+    base_offset.xz = base_wind_scale * wind_offset();
+
+	vec3 base_uvw = base_uvw_scale * BASE_UVW_BASE_SCALE * (pos + base_offset);
+	vec4 base_noise = textureLod(base_noise_texture, base_uvw, lod - 2.);
+	float base_fbm = dot(base_noise.gba, base_fbm_weights);
+	float base_density = remap(base_noise.r, -(1. - base_fbm), 1., 0., 1.); // TODO: Rethink validity
+	base_density = remap(base_density * gradient, 1. - coverage, 1., 0., 1.);
+	base_density *= coverage; // * clamp(4.*rel_height, 0, 1) ?
 
 	if (base_density < EPSILON) return 0.;
 	if (!has_detail) return base_density;
 
-	pos.xz -= time * normalize(wind_direction) * 20.;
-	pos.y -= time * 20.;
-	vec3 detail_uvw = detail_scale * DETAIL_BASE_SCALE * pos;
-	vec3 detail_noise = textureLod(worley_32, detail_uvw, lod).gba;
-	vec3 detail_weights = detail_noise_weights / sum3(detail_noise_weights);
-	float detail_fbm = dot(detail_noise, detail_weights);
-	// What's going on here?!
-	detail_fbm = mix(detail_fbm, 1.-detail_fbm, clamp(4.*rel_height, 0, 1));
-	float density = remap(base_density, 0.4 * detail_fbm * rel_height, 1, 0, 1);
-	//density = pow(clamp(density, 0, 1), (1. - rel_height) * 0.8 + 0.5);
-	return density_multiplier * DENSITY_BASE_SCALE * density;
+    vec3 detail_offset = vec3(0., 1., 0.);
+    detail_offset.xz = normalize(wind_direction);
+    detail_offset = base_density
+        - normalize(detail_offset) * time * detail_speed;
+	vec3 detail_uvw = detail_uvw_scale * DETAIL_UVW_BASE_SCALE
+		* (pos + detail_offset);
+	vec3 detail_noise = textureLod(detail_noise_texture, detail_uvw, lod).gba;
+	float detail_fbm = dot(detail_noise, detail_fbm_weights);
+
+	// Makes details "fluffy" at the bottom and "wispy" at the top.
+	detail_fbm = mix(1. - detail_fbm, detail_fbm,
+		clamp(10. * rel_height, 0., 1.)); // TODO: Identify scale paramter
+
+	// Subtracts detail from base edges and renormalizes density to [0, 1].
+	float density = remap(base_density,
+		0.2 * detail_fbm * (1. - base_density) * rel_height, 1., 0., 1.); // TODO: Identify scale paramter
+
+	// Reduces density at the bottom and increases density at the top.
+	density = pow(clamp(density, 0, 1), (1. - rel_height) * 0.8 + 0.5); // TODO: Rewrite as lerp and identify relevant scales. Apply for base shape already?
+	return clamp(density, 0, 1);
 }
 
-// Extinction coefficient
-vec3 extinction(float conc) {
-	float sigma_e = conc / droplet_radius;
-	return sigma_e * (1. + color_extinction);
-}
 
-vec3 absorbtion(float conc) {
-	float sigma_a = absorbtion_factor * conc / droplet_radius;
-	return sigma_a * color_absorption;
-}
-
-// TODO: Banding at low sun angles
-vec3 sun_transmittance(vec3 pos) {
-	float step_size = (cloud_max_height - cloud_min_height) / 36.;
-	float total_conc = 0.;
-	vec3 sample_pos = pos;
-	for (int i = 0; i < 6; i++) {
-		sample_pos += (SUNDIR + float(i) * RANDOM_VECTORS[i]) * step_size;
-		total_conc += concentration(sample_pos, true, float(i));
-	}
-	sample_pos = pos + 18. * step_size * SUNDIR;
-	float rel_height = relative_height(sample_pos);
-	total_conc += concentration(sample_pos, true, 5.);
-	vec3 extinct = extinction(total_conc);
-	//vec3 beers = exp(-extinct * step_size);
-	//vec3 beers2 = exp(-extinct * step_size * 0.25) * 0.7;
-	//return max(beers, beers2);
+float beer(float extinct, float step_size) {
 	return exp(-extinct * step_size);
 }
 
 
-vec4 cloud_march(vec3 pos, vec3 ray_dir, vec2 screen_uv) {
-	float dst_to_entry = dst_to_radius(pos, ray_dir, ground_radius + cloud_min_height);
-	if (dst_to_entry > 35000.) return vec4(0, 0, 0, 1);
-	float dst_to_exit = dst_to_radius(pos, ray_dir, ground_radius + cloud_max_height);
-	float march_length = dst_to_exit - dst_to_entry;
+// Returns Beer term integrated over a single step.
+// Assumes radiance and extinction are slowly varying over step size.
+// Note: Result is not divided by extinction coefficient as it later cancels
+// with the scattering coefficient (which is about equal since albedo ~ 1).
+float int_beer(float init_transmit, float extinct, float step_size) {
+	return init_transmit * (1. - beer(extinct, step_size));
+}
 
-	vec3 dir_to_light = SUNDIR;
-	vec3 atmosphere_sun = atmosphere(SUNDIR) * LIGHT0_ENERGY;
+// Returns powder-corrected Beer term integrated over a single step.
+// Assumes radiance and extinction are slowly varying over step size.
+// Note: Result is not divided by extinction coefficient as it later cancels
+// with the scattering coefficient (which is about equal since albedo ~ 1).
+float int_beer_powder(float init_transmit, float extinct, float step_size) {
+	float beer = int_beer(init_transmit, extinct, step_size);
+	float init_transmit_powder = pow(init_transmit, powder_coefficient + 1.);
+	float extinct_powder = (powder_coefficient + 1.) * extinct;
+	float powder = int_beer(init_transmit_powder, extinct_powder, step_size)
+		/ (powder_coefficient + 1.);
+	return beer - powder;
+}
+
+
+// TODO: Banding at low sun angles
+float sun_transmittance(vec3 pos) {
+    const int STEPS = 6;
+    const float STEPS_SQ = float(STEPS * STEPS);
+    float step_size = (cloud_max_height - cloud_min_height) / STEPS_SQ;
+	float total_density = 0.;
+	vec3 sample_pos = pos;
+	for (int i = 0; i < STEPS; i++) {
+		sample_pos += step_size
+            * (SUNDIR + float(i) * RANDOM_VECTORS[i]);
+		total_density += cloud_density(sample_pos, true, float(i));
+	}
+	sample_pos = pos + STEPS_SQ * step_size * SUNDIR / 2.;
+	float rel_height = relative_height(sample_pos);
+	total_density += cloud_density(sample_pos, true, 5.);
+	float extinction = extinction_scale * total_density;
+	return beer(extinction, step_size);
+}
+
+
+vec3 scatter_radiance(vec3 pos, float cos_theta) {
+	vec3 radiance = atmosphere(SUNDIR) * LIGHT0_ENERGY;
+	float transmittance = sun_transmittance(pos);
+	float phase = dual_lobe_hg(cos_theta, 1.);
+	float multi_scatter = transmittance * phase;
+	float a = 1.; float b = 1.;
+	for (int k = 1; k < scattering_octaves; k++) {
+		transmittance = pow(transmittance, extinction_attenuation);
+		a *= scattering_attenuation;
+		b *= eccentricity_attenuation;
+
+		phase = dual_lobe_hg(cos_theta, b);
+		multi_scatter += a * transmittance * phase;
+	}
+	return multi_scatter * radiance;
+}
+
+
+vec3 ambient_radiance(vec3 pos) {
+	float rel_height = relative_height(pos);
 	vec3 atmosphere_ambient = atmosphere(normalize(vec3(1.0, 1.0, 0.0)));
 	vec3 atmosphere_ground = atmosphere(normalize(vec3(1.0, -1.0, 0.0)));
-
-	float cos_theta = dot(dir_to_light, ray_dir);
-	float phase = dual_lobe_hg(cos_theta, eccentricity_1, eccentricity_2);
-
-	float step_weight = 1. - ray_dir.y;
-	float big_steps = mix(float(min_big_steps), float(max_big_steps), step_weight);
-	float big_step_size = march_length / big_steps;
-	float small_step_size = small_step_ratio * big_step_size;
-
-	float offset_noise = 2. * texture(blue_noise, 2. * screen_uv).r - 1.; // [-1, 1];
-
-	// Use hash function?
-	float march_offset = march_offset_scale * offset_noise;
-
-	vec3 march_start = pos + (dst_to_entry + 10. * hash(pos) * big_step_size) * ray_dir;
-
-	float dst_marched = 0.;
-	vec3 transmittance = vec3(1.);
-	vec3 sun_energy = LIGHT0_COLOR * LIGHT0_ENERGY * SUN_ENERGY;
-	vec3 light_energy = vec3(0.);
-
-	bool is_small = false;
-	int zero_density_steps = 0;
-
-	float alpha = 1.;
-
-	while(dst_marched < march_length) {
-		vec3 march_pos = march_start + dst_marched * ray_dir;
-		float conc = concentration(march_pos, is_small, 0.);
-
-		float step_size = is_small ? small_step_size : big_step_size;
-		//step_size = big_step_size;
-
-		if (conc > 0.) {
-
-			if (!is_small) {
-				dst_marched -= big_step_size;
-				is_small = true;
-				zero_density_steps = 0;
-				continue;
-			}
-
-			vec3 extinct = extinction(conc);
-			vec3 absorb = absorbtion(conc);
-			vec3 scatter = extinct - absorb;
-			vec3 albedo = scatter / extinct;
-
-			vec3 light_transmittance = sun_transmittance(march_pos);
-			float rel_height = relative_height(march_pos);
-			vec3 ambient = mix(atmosphere_ground, vec3(1), smoothstep(0, 1, rel_height))
-				* mix(atmosphere_ambient, vec3(1), 0.4) * dir_to_light.y * density_multiplier * DENSITY_BASE_SCALE;
-
-			vec3 integ = (1. - exp(-extinct * step_size));
-			vec3 powder_int = integ-pow(transmittance, vec3(powder_strength))/(powder_strength + 1.) * (1. - exp(-(powder_strength + 1.) * extinct * step_size));
-
-			light_energy += (ambient * integ + light_transmittance * atmosphere_sun * phase * powder_int) * albedo * transmittance;
-
-			float a, b, c = 1.;
-
-			for (int k = 1; k < scattering_octaves; k++) {
-				a *= scattering_attenuation;
-				b *= extinction_attenuation;
-				c *= eccentricity_attenuation;
+	return mix(atmosphere_ground, atmosphere_ambient,
+		smoothstep(0, 1, rel_height));
+}
 
 
-				light_transmittance = pow(light_transmittance, vec3(extinction_attenuation));
-				albedo *= scattering_attenuation;
-				phase = dual_lobe_hg(cos_theta, c * eccentricity_1, c * eccentricity_2);
-				light_energy += (light_transmittance * atmosphere_sun * phase * powder_int) * albedo * transmittance;
-			}
+bool detail_march(
+	vec3 march_start, vec3 march_step, int steps, inout vec3 radiance,
+	inout float transmit
+) {
+	float step_size = length(march_step);
+	vec3 march_dir = march_step / step_size;
+	float cos_theta = dot(SUNDIR, march_dir);
 
-			transmittance *= exp(-extinct * step_size);
-			alpha = min(min(transmittance.x, transmittance.y), transmittance.z);
-			if (alpha < EPSILON) break;
+	vec3 march_pos = march_start - march_step;
+	bool has_density = false;
 
-		} else {
-			if (is_small) {
-				zero_density_steps++;
-				if (zero_density_steps > int(floor(1./small_step_ratio))) {
-					is_small = false;
-				}
-			}
-		}
-		dst_marched += step_size;
+	for(int i = 0; i < steps; i++) {
+		march_pos += march_step;
+		float density = cloud_density(march_pos, true, 0.);
+
+		if (density <= 0.) continue;
+		has_density = true;
+
+		float extinction = extinction_scale * density;
+
+		vec3 ambient = ambient_radiance(march_pos);
+		vec3 scatter = scatter_radiance(march_pos, cos_theta);
+		float beer_powder = int_beer_powder(transmit, extinction, step_size);
+
+		radiance += beer_powder * (ambient + scatter) * albedo;
+		transmit *= beer(extinction, step_size);
+		if (transmit < EPSILON) break;
 	}
-	return vec4(light_energy, alpha);
+
+	return has_density;
+}
+
+
+vec4 cloud_march(vec3 march_start, vec3 march_step, int steps) {
+	vec3 radiance = vec3(0.);
+	float transmittance = 1.;
+
+	if (substeps <= 0) {
+		detail_march(march_start, march_step, steps, radiance, transmittance);
+		return vec4(radiance, 1. - transmittance);
+	}
+
+	float step_size = length(march_step);
+	vec3 march_dir = march_step / step_size;
+	vec3 march_pos = march_start - march_step;
+
+	float substep_size = step_size / float(substeps);
+	vec3 march_substep = substep_size * march_dir;
+
+	bool using_substeps = false;
+
+	for(int i = 0; i < steps; i++) {
+		march_pos += march_step;
+		float density = cloud_density(march_pos, false, 0.);
+
+		if (density > 0. && !using_substeps) {
+			detail_march(
+				march_pos - march_step, march_substep, substeps,
+				radiance, transmittance
+			);
+			using_substeps = true;
+		}
+
+		if (using_substeps){
+			using_substeps = detail_march(
+				march_pos, march_substep, substeps, radiance, transmittance
+			);
+		}
+
+		if (transmittance < EPSILON) break;
+	}
+
+	return vec4(radiance, 1. - transmittance);
 }
 
 
 void sky() {
-	vec3 pos = POSITION + vec3(0, ground_radius, 0);
 	vec3 ray_dir = normalize(EYEDIR);
 	vec2 screen_uv = SCREEN_UV;
 
@@ -413,7 +461,19 @@ void sky() {
 
 	if (AT_HALF_RES_PASS) {
 		if (ray_dir.y > 0.) {
-			vec4 cloud_data = cloud_march(pos, ray_dir, screen_uv);
+			vec3 pos = vec3(0, ground_radius, 0);
+			float cloud_min_radius = ground_radius + cloud_min_height;
+			float cloud_max_radius = ground_radius + cloud_max_height;
+			float dist_to_entry = dist_to_radius(pos, ray_dir, cloud_min_radius);
+			float dist_to_exit = dist_to_radius(pos, ray_dir, cloud_max_radius);
+			float march_dist = dist_to_exit - dist_to_entry;
+
+			// Decrease number of big march steps towards the horizon.
+			float steps = mix(float(min_steps), float(max_steps), ray_dir.y);
+			vec3 march_step = ray_dir * march_dist / steps;
+			vec3 march_start = pos + dist_to_entry * ray_dir + march_step * (hash(10. * pos) - 0.5); // TODO: Add noise to offset
+
+			vec4 cloud_data = cloud_march(march_start, march_step, int(steps));
 			COLOR = cloud_data.rgb;
 			ALPHA = cloud_data.a;
 		} else {
@@ -428,7 +488,7 @@ void sky() {
 		vec3 sky_col_base = mix(base_color_a, base_color_b, sky_col_weight);
 		sky_col_base = atmosphere(ray_dir);
 		vec3 cloud_color = light_energy;
-		COLOR = transmittance * sky_col_base + cloud_color;
+		COLOR = (1. - transmittance) * sky_col_base + cloud_color;
 		COLOR = mix(COLOR, sky_col_base, smoothstep(0.6, 1.0, 1.0-ray_dir.y));
 
 	}
